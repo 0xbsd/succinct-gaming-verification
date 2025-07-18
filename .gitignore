@@ -1,13 +1,22 @@
 # OS and editor files
 .DS_Store
 Thumbs.db
+.vscode/
+.idea/
 *.swp
 
 # Vercel deployment folder
-.vercel
+.vercel/
 
 # Logs
+logs/
 *.log
 
-# Local environment files (if ever used)
+# Local environment files
 .env
+.env.*
+!.env.example
+.env.local
+.env.production
+.env.development
+.env.test
