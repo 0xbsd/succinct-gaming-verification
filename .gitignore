@@ -1,0 +1,13 @@
+# OS and editor files
+.DS_Store
+Thumbs.db
+*.swp
+
+# Vercel deployment folder
+.vercel
+
+# Logs
+*.log
+
+# Local environment files (if ever used)
+.env

@@ -1,0 +1,628 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Succinct Gaming Hub - Twitter Verification</title>
+    <meta name="description" content="Verify your Twitter account to access Succinct Gaming Hub">
+    <meta name="robots" content="noindex, nofollow">
+    <!-- All CSS is inline for simplicity and portability -->
+    <style>
+        :root {
+            --primary-color: #6366f1;
+            --secondary-color: #8b5cf6;
+            --success-color: #10b981;
+            --error-color: #ef4444;
+            --warning-color: #f59e0b;
+            --bg-primary: #0f172a;
+            --bg-secondary: #1e293b;
+            --text-primary: #f1f5f9;
+            --text-secondary: #94a3b8;
+            --border-color: rgba(255, 255, 255, 0.1);
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, var(--bg-primary) 0%, var(--bg-secondary) 100%);
+            color: var(--text-primary);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+        .verification-container {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 2rem;
+        }
+        .header { text-align: center; margin-bottom: 3rem; }
+        .header h1 {
+            font-size: 2.5rem;
+            font-weight: 700;
+            margin-bottom: 1rem;
+            background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        .header p { color: var(--text-secondary); font-size: 1.1rem; }
+        .header a { color: var(--primary-color); text-decoration: none; }
+        .header a:hover { text-decoration: underline; }
+        .step-card {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid var(--border-color);
+            border-radius: 20px;
+            padding: 2rem;
+            margin-bottom: 2rem;
+            backdrop-filter: blur(10px);
+            transition: all 0.3s ease;
+        }
+        .step-card.active {
+            border-color: var(--primary-color);
+            box-shadow: 0 0 30px rgba(99, 102, 241, 0.3);
+        }
+        .step-card.hidden { display: none; }
+        .step-card h2 {
+            color: var(--text-primary);
+            margin-bottom: 1.5rem;
+            font-size: 1.5rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        .step-icon { font-size: 1.8rem; }
+        .twitter-input {
+            display: flex; gap: 1rem; margin-bottom: 1rem; align-items: center;
+        }
+        .twitter-prefix { font-size: 1.5rem; color: var(--primary-color); font-weight: 600; }
+        input[type="text"] {
+            flex: 1;
+            padding: 1rem 1.25rem;
+            background: rgba(255, 255, 255, 0.08);
+            border: 2px solid var(--border-color);
+            border-radius: 12px;
+            color: var(--text-primary);
+            font-size: 1.1rem;
+            transition: all 0.3s ease;
+        }
+        input[type="text"]:focus {
+            outline: none;
+            border-color: var(--primary-color);
+            box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.2);
+        }
+        input[type="text"]::placeholder { color: var(--text-secondary); }
+        .btn {
+            padding: 1rem 2rem;
+            border: none;
+            border-radius: 12px;
+            font-weight: 600;
+            font-size: 1rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+        }
+        .btn-primary {
+            background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+            color: white;
+            box-shadow: 0 4px 15px rgba(99, 102, 241, 0.4);
+        }
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(99, 102, 241, 0.6);
+        }
+        .btn-secondary {
+            background: rgba(255, 255, 255, 0.1);
+            color: var(--text-primary);
+            border: 1px solid var(--border-color);
+        }
+        .btn-secondary:hover { background: rgba(255, 255, 255, 0.15); }
+        .btn:disabled { opacity: 0.6; cursor: not-allowed; transform: none !important; }
+        .stats-preview {
+            background: rgba(16, 185, 129, 0.1);
+            border: 1px solid rgba(16, 185, 129, 0.3);
+            border-radius: 12px;
+            padding: 1.5rem;
+            margin-bottom: 2rem;
+        }
+        .user-stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 1rem; }
+        .stat-item { text-align: center; }
+        .stat-label { display: block; color: var(--text-secondary); font-size: 0.9rem; margin-bottom: 0.25rem; }
+        .stat-value { display: block; color: var(--success-color); font-weight: 600; font-size: 1.2rem; }
+        .code-display { text-align: center; margin: 2rem 0; }
+        .code-box {
+            display: inline-flex;
+            align-items: center;
+            gap: 1rem;
+            background: rgba(255, 255, 255, 0.1);
+            border: 2px solid var(--primary-color);
+            border-radius: 16px;
+            padding: 2rem;
+            margin-bottom: 1rem;
+        }
+        .code-number {
+            font-size: 3rem;
+            font-weight: 700;
+            color: var(--primary-color);
+            letter-spacing: 0.5rem;
+            font-family: 'Courier New', monospace;
+        }
+        .copy-btn {
+            background: var(--primary-color);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            padding: 0.5rem 1rem;
+            font-size: 1.2rem;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+        .copy-btn:hover { background: var(--secondary-color); }
+        .countdown-timer {
+            background: rgba(245, 158, 11, 0.1);
+            border: 1px solid rgba(245, 158, 11, 0.3);
+            border-radius: 8px;
+            padding: 0.75rem 1rem;
+            margin-bottom: 2rem;
+            text-align: center;
+            color: var(--warning-color);
+            font-weight: 500;
+        }
+        .countdown-number { font-size: 1.2rem; font-weight: 700; }
+        .error-card {
+            background: rgba(239, 68, 68, 0.1);
+            border: 1px solid rgba(239, 68, 68, 0.3);
+            border-radius: 12px;
+            padding: 1.5rem;
+            color: #fca5a5;
+        }
+        .error-card h2 { color: var(--error-color); margin-bottom: 1rem; }
+        .error-message { margin-bottom: 1.5rem; line-height: 1.6; }
+        .loading { opacity: 0.7; pointer-events: none; }
+        .loading .btn::after {
+            content: '';
+            width: 20px;
+            height: 20px;
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            border-top: 2px solid white;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-left: 0.5rem;
+        }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        .progress-indicators {
+            display: flex;
+            justify-content: center;
+            gap: 1rem;
+            margin-bottom: 2rem;
+        }
+        .progress-dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.2);
+            transition: all 0.3s ease;
+        }
+        .progress-dot.active {
+            background: var(--primary-color);
+            transform: scale(1.2);
+        }
+        .progress-dot.completed { background: var(--success-color); }
+        .footer {
+            text-align: center;
+            padding: 2rem;
+            color: var(--text-secondary);
+            border-top: 1px solid var(--border-color);
+            margin-top: auto;
+        }
+        .footer a { color: var(--primary-color); text-decoration: none; }
+        .footer a:hover { text-decoration: underline; }
+        @media (max-width: 768px) {
+            .verification-container { padding: 1rem; }
+            .header h1 { font-size: 2rem; }
+            .step-card { padding: 1.5rem; }
+            .twitter-input { flex-direction: column; align-items: stretch; }
+            .user-stats { grid-template-columns: 1fr 1fr; }
+            .code-box { flex-direction: column; gap: 1rem; }
+            .code-number { font-size: 2rem; }
+        }
+    </style>
+</head>
+<body>
+    <div class="verification-container">
+        <header class="header">
+            <h1>🐦 Twitter Verification</h1>
+            <p>Powered by <a href="https://github.com/ensp1re/succinct-stats" target="_blank">Succinct Stats</a></p>
+        </header>
+        <div class="progress-indicators">
+            <div class="progress-dot active" id="dot1"></div>
+            <div class="progress-dot" id="dot2"></div>
+            <div class="progress-dot" id="dot3"></div>
+        </div>
+        <!-- Step 1: Enter Twitter Username -->
+        <div class="step-card active" id="step1">
+            <h2><span class="step-icon">🐦</span> Step 1: Enter Twitter Username</h2>
+            <div class="twitter-input">
+                <span class="twitter-prefix">@</span>
+                <input type="text" id="twitterUsername" placeholder="your_twitter_handle" maxlength="15" pattern="^[A-Za-z0-9_]+$">
+                <button id="verifyTwitterBtn" class="btn btn-primary">Verify Twitter</button>
+            </div>
+            <small style="color: var(--text-secondary); display: block; margin-top: 0.5rem;">We'll check your Twitter against the Succinct Stats database</small>
+        </div>
+        <!-- Step 2: Succinct Stats Found -->
+        <div class="step-card hidden" id="step2">
+            <h2><span class="step-icon">🎉</span> Step 2: Succinct Stats Found!</h2>
+            <div class="stats-preview" id="statsPreview"></div>
+            <button id="generateCodeBtn" class="btn btn-primary">Generate Verification Code</button>
+        </div>
+        <!-- Step 3: Verification Code -->
+        <div class="step-card hidden" id="step3">
+            <h2><span class="step-icon">🔢</span> Step 3: Your Verification Code</h2>
+            <div class="countdown-timer" id="countdownTimer">Code expires in: <span class="countdown-number" id="countdown">5:00</span></div>
+            <div class="code-display">
+                <div class="code-box">
+                    <span class="code-number" id="generatedCode">------</span>
+                    <button class="copy-btn" onclick="copyCode()">📋</button>
+                </div>
+            </div>
+            <p style="margin-bottom: 2rem; text-align: center; color: var(--text-secondary);">Copy this code and return to Succinct Gaming Hub to complete registration.</p>
+            <div style="text-align: center;">
+                <a href="#" id="returnToGameHub" class="btn btn-primary">🎮 Return to Gaming Hub</a>
+            </div>
+        </div>
+        <!-- Error Step -->
+        <div class="step-card error-card hidden" id="stepError">
+            <h2>❌ Verification Failed</h2>
+            <div class="error-message" id="errorMessage"></div>
+            <button onclick="resetVerification()" class="btn btn-secondary">Try Again</button>
+        </div>
+    </div>
+    <footer class="footer">
+        <p>Secure verification for <strong>Succinct Gaming Hub</strong></p>
+        <p><a href="https://github.com/ensp1re/succinct-stats">Learn more about Succinct Stats</a></p>
+    </footer>
+    <script>
+        class TwitterVerification {
+            constructor() {
+                this.apiBaseUrl = 'https://api.succinct-gaming-hub.xyz'; // Your API URL
+                this.currentStep = 1;
+                this.verificationData = null;
+                this.countdownTimer = null;
+                this.init();
+            }
+
+            init() {
+                this.setupEventListeners();
+                this.updateProgress();
+                // Get return URL from query params
+                const urlParams = new URLSearchParams(window.location.search);
+                this.returnUrl = urlParams.get('return_url') || 'https://succinct-gaming-hub.xyz';
+            }
+
+            setupEventListeners() {
+                document.getElementById('verifyTwitterBtn').addEventListener('click', () => {
+                    this.verifyTwitterUsername();
+                });
+
+                document.getElementById('generateCodeBtn').addEventListener('click', () => {
+                    this.generateVerificationCode();
+                });
+
+                // Enter key support
+                document.getElementById('twitterUsername').addEventListener('keypress', (e) => {
+                    if (e.key === 'Enter') {
+                        this.verifyTwitterUsername();
+                    }
+                });
+
+                // Real-time username validation
+                document.getElementById('twitterUsername').addEventListener('input', (e) => {
+                    const value = e.target.value.replace(/[^A-Za-z0-9_]/g, '');
+                    e.target.value = value;
+                    const verifyBtn = document.getElementById('verifyTwitterBtn');
+                    verifyBtn.disabled = value.length === 0;
+                });
+            }
+
+            async verifyTwitterUsername() {
+                const username = document.getElementById('twitterUsername').value.trim();
+                if (!username) {
+                    this.showError('Please enter a Twitter username');
+                    return;
+                }
+                if (!/^[A-Za-z0-9_]{1,15}$/.test(username)) {
+                    this.showError('Invalid Twitter username format');
+                    return;
+                }
+                try {
+                    this.setLoading(true, 'Checking Succinct Stats...');
+                    const response = await fetch(`${this.apiBaseUrl}/api/verify-twitter`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({
+                            twitterUsername: username
+                        })
+                    });
+                    const result = await response.json();
+                    if (response.ok && result.found) {
+                        this.verificationData = result;
+                        this.showStep2(result.stats);
+                    } else if (response.status === 429) {
+                        this.showError('Too many verification attempts. Please wait before trying again.');
+                    } else {
+                        this.showError(result.error || 'Twitter account not found in Succinct Stats database. Please ensure you\'re part of the Succinct community.');
+                    }
+                } catch (error) {
+                    console.error('Verification error:', error);
+                    this.showError('Network error. Please check your connection and try again.');
+                } finally {
+                    this.setLoading(false);
+                }
+            }
+
+            showStep2(stats) {
+                this.currentStep = 2;
+                this.updateProgress();
+                document.getElementById('step1').classList.add('hidden');
+                document.getElementById('step2').classList.remove('hidden');
+                document.getElementById('step2').classList.add('active');
+                const statsPreview = document.getElementById('statsPreview');
+                statsPreview.innerHTML = `
+                    <div class="user-stats">
+                        <div class="stat-item">
+                            <span class="stat-label">Twitter</span>
+                            <span class="stat-value">@${stats.twitterUsername}</span>
+                        </div>
+                        <div class="stat-item">
+                            <span class="stat-label">Points</span>
+                            <span class="stat-value">${stats.points || 'N/A'}</span>
+                        </div>
+                        <div class="stat-item">
+                            <span class="stat-label">Rank</span>
+                            <span class="stat-value">#${stats.rank || 'Unranked'}</span>
+                        </div>
+                        <div class="stat-item">
+                            <span class="stat-label">Member Since</span>
+                            <span class="stat-value">${this.formatDate(stats.joinDate) || 'N/A'}</span>
+                        </div>
+                    </div>
+                `;
+            }
+
+            async generateVerificationCode() {
+                try {
+                    this.setLoading(true, 'Generating code...');
+                    const response = await fetch(`${this.apiBaseUrl}/api/generate-verification-code`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({
+                            twitterUsername: this.verificationData.stats.twitterUsername,
+                            succinctData: this.verificationData.stats
+                        })
+                    });
+                    const result = await response.json();
+                    if (response.ok && result.success) {
+                        this.showStep3(result.code, result.expiresIn);
+                    } else if (response.status === 429) {
+                        this.showError('Too many code generation attempts. Please wait before requesting a new code.');
+                    } else {
+                        this.showError(result.error || 'Code generation failed. Please try again.');
+                    }
+                } catch (error) {
+                    console.error('Code generation error:', error);
+                    this.showError('Network error. Please try again.');
+                } finally {
+                    this.setLoading(false);
+                }
+            }
+
+            showStep3(code, expiresInSeconds) {
+                this.currentStep = 3;
+                this.updateProgress();
+                document.getElementById('step2').classList.add('hidden');
+                document.getElementById('step3').classList.remove('hidden');
+                document.getElementById('step3').classList.add('active');
+                document.getElementById('generatedCode').textContent = code;
+                document.getElementById('returnToGameHub').href = this.returnUrl;
+                this.startCountdown(expiresInSeconds);
+                this.copyCodeToClipboard(code);
+            }
+
+            startCountdown(seconds) {
+                let timeLeft = seconds;
+                const countdownEl = document.getElementById('countdown');
+                const timerEl = document.getElementById('countdownTimer');
+                this.countdownTimer = setInterval(() => {
+                    const minutes = Math.floor(timeLeft / 60);
+                    const secs = timeLeft % 60;
+                    countdownEl.textContent = `${minutes}:${secs.toString().padStart(2, '0')}`;
+                    if (timeLeft <= 60) {
+                        timerEl.style.borderColor = 'rgba(239, 68, 68, 0.3)';
+                        timerEl.style.background = 'rgba(239, 68, 68, 0.1)';
+                        countdownEl.style.color = '#ef4444';
+                    }
+                    if (timeLeft <= 0) {
+                        clearInterval(this.countdownTimer);
+                        this.showError('Verification code expired. Please generate a new one.');
+                    }
+                    timeLeft--;
+                }, 1000);
+            }
+
+            updateProgress() {
+                for (let i = 1; i <= 3; i++) {
+                    const dot = document.getElementById(`dot${i}`);
+                    if (i < this.currentStep) {
+                        dot.classList.remove('active');
+                        dot.classList.add('completed');
+                    } else if (i === this.currentStep) {
+                        dot.classList.add('active');
+                        dot.classList.remove('completed');
+                    } else {
+                        dot.classList.remove('active', 'completed');
+                    }
+                }
+            }
+
+            showError(message) {
+                document.querySelectorAll('.step-card').forEach(card => {
+                    card.classList.add('hidden');
+                    card.classList.remove('active');
+                });
+                const errorStep = document.getElementById('stepError');
+                errorStep.classList.remove('hidden');
+                errorStep.classList.add('active');
+                document.getElementById('errorMessage').textContent = message;
+                if (this.countdownTimer) {
+                    clearInterval(this.countdownTimer);
+                    this.countdownTimer = null;
+                }
+            }
+
+            setLoading(isLoading, message = '') {
+                const buttons = document.querySelectorAll('.btn');
+                const inputs = document.querySelectorAll('input');
+                if (isLoading) {
+                    buttons.forEach(btn => {
+                        btn.disabled = true;
+                        btn.classList.add('loading');
+                        if (message && btn.textContent.indexOf(message) === -1) {
+                            btn.dataset.originalText = btn.textContent;
+                            btn.textContent = message;
+                        }
+                    });
+                    inputs.forEach(input => input.disabled = true);
+                } else {
+                    buttons.forEach(btn => {
+                        btn.disabled = false;
+                        btn.classList.remove('loading');
+                        if (btn.dataset.originalText) {
+                            btn.textContent = btn.dataset.originalText;
+                            delete btn.dataset.originalText;
+                        }
+                    });
+                    inputs.forEach(input => input.disabled = false);
+                }
+            }
+
+            formatDate(dateString) {
+                if (!dateString) return null;
+                try {
+                    return new Date(dateString).toLocaleDateString('en-US', {
+                        year: 'numeric',
+                        month: 'short'
+                    });
+                } catch {
+                    return dateString;
+                }
+            }
+
+            copyCodeToClipboard(code) {
+                if (navigator.clipboard) {
+                    navigator.clipboard.writeText(code).then(() => {
+                        this.showCopyFeedback();
+                    }).catch(() => {
+                        this.fallbackCopy(code);
+                    });
+                } else {
+                    this.fallbackCopy(code);
+                }
+            }
+
+            fallbackCopy(code) {
+                const textArea = document.createElement('textarea');
+                textArea.value = code;
+                document.body.appendChild(textArea);
+                textArea.select();
+                try {
+                    document.execCommand('copy');
+                    this.showCopyFeedback();
+                } catch (err) {
+                    console.error('Copy failed:', err);
+                }
+                document.body.removeChild(textArea);
+            }
+
+            showCopyFeedback() {
+                const copyBtn = document.querySelector('.copy-btn');
+                const originalText = copyBtn.textContent;
+                copyBtn.textContent = '✅';
+                copyBtn.style.background = 'var(--success-color)';
+                setTimeout(() => {
+                    copyBtn.textContent = originalText;
+                    copyBtn.style.background = '';
+                }, 2000);
+            }
+        }
+
+        // Global functions
+        function copyCode() {
+            const code = document.getElementById('generatedCode').textContent;
+            if (code && code !== '------') {
+                verification.copyCodeToClipboard(code);
+            }
+        }
+
+        function resetVerification() {
+            document.querySelectorAll('.step-card').forEach(card => {
+                card.classList.add('hidden');
+                card.classList.remove('active');
+            });
+            document.getElementById('step1').classList.remove('hidden');
+            document.getElementById('step1').classList.add('active');
+            document.getElementById('twitterUsername').value = '';
+            document.getElementById('twitterUsername').focus();
+            verification.currentStep = 1;
+            verification.verificationData = null;
+            verification.updateProgress();
+            if (verification.countdownTimer) {
+                clearInterval(verification.countdownTimer);
+                verification.countdownTimer = null;
+            }
+        }
+
+        // Initialize verification flow
+        let verification;
+        document.addEventListener('DOMContentLoaded', () => {
+            verification = new TwitterVerification();
+            document.getElementById('twitterUsername').focus();
+            document.querySelectorAll('.step-card').forEach((card, index) => {
+                card.style.animationDelay = `${index * 0.1}s`;
+            });
+        });
+        document.addEventListener('visibilitychange', () => {
+            if (verification && verification.countdownTimer) {
+                if (document.hidden) {
+                    // Do nothing for security
+                } else {
+                    // Could add a "welcome back" message
+                }
+            }
+        });
+        window.addEventListener('beforeunload', (e) => {
+            if (verification && verification.currentStep > 1 && verification.currentStep < 3) {
+                e.preventDefault();
+                e.returnValue = 'Are you sure you want to leave? Your verification progress will be lost.';
+            }
+        });
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape' && verification.currentStep !== 3) {
+                resetVerification();
+            }
+            if ((e.ctrlKey || e.metaKey) && e.key === 'c' && verification.currentStep === 3) {
+                copyCode();
+                e.preventDefault();
+            }
+        });
+    </script>
+</body>
+</html>
