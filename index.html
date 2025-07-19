@@ -332,11 +332,16 @@
             }
 
             async verifyTwitterUsername() {
-                const username = document.getElementById('twitterUsername').value.trim();
+                let username = document.getElementById('twitterUsername').value.trim();
                 if (!username) {
                     this.showError('Please enter a Twitter username');
                     return;
                 }
+                if (!username.startsWith('@')) {
+                    this.showError('Please include "@" before your Twitter username (e.g., @yourname)');
+                    return;
+                }
+                username = username.slice(1); // Remove '@' for API call
                 if (!/^[A-Za-z0-9_]{1,15}$/.test(username)) {
                     this.showError('Invalid Twitter username format');
                     return;
