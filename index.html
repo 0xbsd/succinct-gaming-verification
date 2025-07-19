@@ -659,6 +659,7 @@
             async performVerification(username) {
                 const debugInfo = [];
                 
+                // Try multiple API endpoints
                 const apiAttempts = [
                     { url: `https://succinct-stats.vercel.app/api/user/${username}`, method: 'GET' },
                     { url: `https://succinct-stats.vercel.app/api/users/${username}`, method: 'GET' },
@@ -713,6 +714,7 @@
                     }
                 }
 
+                // Mock verification for testing
                 if (['0xbsd', 'testuser', 'demo'].includes(username.toLowerCase())) {
                     debugInfo.push('🧪 Using mock data for testing');
                     console.log('🧪 Using mock data for username:', username);
@@ -795,7 +797,6 @@
             displayUserStats(stats) {
                 const statsPreview = document.getElementById('statsPreview');
                 statsPreview.innerHTML = `
-                    <div class="user-stats">
                         <div class="stat-item">
                             <span class="stat-label">🐦 Twitter</span>
                             <span class="stat-value">@${stats.twitterUsername}</span>
@@ -810,64 +811,128 @@
                         </div>
                         <div class="stat-item">
                             <span class="stat-label">📅 Member Since</span>
-                            <span class="stat-value">${this.formatDate(stats.joinDate) || 'N/A'}</span>
+                            <span class="stat-value">${this.formatDate(stats.joinDate)}</span>
                         </div>
+                        ${stats.proofs !== 'N/A' ? `
                         <div class="stat-item">
-                            <span class="stat-label">🔗 Proofs</span>
-                            <span class="stat-value">${stats.proofs || 'N/A'}</span>
+                            <span class="stat-label">🔍 Proofs</span>
+                            <span class="stat-value">${stats.proofs}</span>
                         </div>
+                        ` : ''}
+                        ${stats.cycles !== 'N/A' ? `
                         <div class="stat-item">
                             <span class="stat-label">🔄 Cycles</span>
-                            <span class="stat-value">${stats.cycles || 'N/A'}</span>
+                            <span class="stat-value">${stats.cycles}</span>
                         </div>
+                        ` : ''}
                     </div>
                 `;
             }
 
             async generateVerificationCode() {
                 try {
-                    this.setLoading(true, 'Generating code...');
-                    // Generate code client-side (less secure but functional)
-                    const code = Math.floor(100000 + Math.random() * 900000).toString();
+                    this.setLoading(true, 'Generating secure access code...');
+                    console.log('🔑 Generating verification code...');
+                    
+                    const code = this.generateSecureCode();
                     const expiresInSeconds = 5 * 60; // 5 minutes
+                    
+                    console.log('🎲 Generated code:', code);
+                    
+                    // Send code back to parent window if opened as popup
+                    if (window.opener && !window.opener.closed) {
+                        try {
+                            window.opener.postMessage({
+                                type: 'VERIFICATION_SUCCESS',
+                                code: code
+                            }, '*');
+                            console.log('📨 Sent code to parent window');
+                        } catch (e) {
+                            console.log('Could not send message to parent window');
+                        }
+                    }
+                    
                     this.showStep3(code, expiresInSeconds);
+                    
                 } catch (error) {
-                    console.error('Code generation error:', error);
+                    console.error('💥 Code generation error:', error);
                     this.showError('Code generation failed. Please try again.');
                 } finally {
                     this.setLoading(false);
                 }
             }
 
+            generateSecureCode() {
+                const chars = '0123456789';
+                let code = '';
+                
+                // Ensure first digit is not 0 for better UX
+                code += chars.charAt(Math.floor(Math.random() * 9) + 1);
+                
+                // Generate remaining 5 digits
+                for (let i = 0; i < 5; i++) {
+                    code += chars.charAt(Math.floor(Math.random() * chars.length));
+                }
+                
+                return code;
+            }
+
             showStep3(code, expiresInSeconds) {
                 this.currentStep = 3;
                 this.hideAllSteps();
+                
                 const step3 = document.getElementById('step3');
                 step3.classList.remove('hidden');
                 step3.classList.add('active');
+                
                 document.getElementById('generatedCode').textContent = code;
-                document.getElementById('returnToGameHub').href = this.returnUrl;
+                
+                // Update return URL with code for easier testing
+                const returnUrlWithCode = new URL(this.returnUrl);
+                returnUrlWithCode.searchParams.set('code', code);
+                returnUrlWithCode.searchParams.set('session', this.sessionId);
+                document.getElementById('returnToGameHub').href = returnUrlWithCode.toString();
+                
                 this.startCountdown(expiresInSeconds);
+                this.copyCodeToClipboard(code);
+                
+                console.log('🎯 Step 3 displayed with code:', code);
+                console.log('🔗 Return URL:', returnUrlWithCode.toString());
             }
 
             startCountdown(seconds) {
+                if (this.countdownTimer) {
+                    clearInterval(this.countdownTimer);
+                }
+                
                 let timeLeft = seconds;
                 const countdownEl = document.getElementById('countdown');
                 const timerEl = document.getElementById('countdownTimer');
-                if (this.countdownTimer) clearInterval(this.countdownTimer);
+                
+                console.log('⏰ Starting countdown:', seconds, 'seconds');
+                
                 this.countdownTimer = setInterval(() => {
                     const minutes = Math.floor(timeLeft / 60);
                     const secs = timeLeft % 60;
                     countdownEl.textContent = `${minutes}:${secs.toString().padStart(2, '0')}`;
+                    
+                    // Visual warnings
                     if (timeLeft <= 60) {
-                        timerEl.style.borderColor = 'rgba(239, 68, 68, 0.3)';
+                        timerEl.style.borderColor = 'rgba(239, 68, 68, 0.5)';
                         timerEl.style.background = 'rgba(239, 68, 68, 0.1)';
                         countdownEl.style.color = '#ef4444';
+                    } else if (timeLeft <= 120) {
+                        timerEl.style.borderColor = 'rgba(245, 158, 11, 0.5)';
+                        timerEl.style.background = 'rgba(245, 158, 11, 0.1)';
+                        countdownEl.style.color = '#f59e0b';
                     }
+                    
                     if (timeLeft <= 0) {
                         clearInterval(this.countdownTimer);
+                        console.log('⏰ Code expired');
                         this.showError('Verification code expired. Please generate a new one.');
                     }
+                    
                     timeLeft--;
                 }, 1000);
             }
@@ -880,19 +945,26 @@
             }
 
             showError(message, debugInfo = null) {
+                console.log('❌ Showing error:', message);
+                if (debugInfo) console.log('🐛 Debug info:', debugInfo);
+                
                 this.hideAllSteps();
+                
                 const errorStep = document.getElementById('stepError');
                 errorStep.classList.remove('hidden');
                 errorStep.classList.add('active');
+                
                 document.getElementById('errorMessage').textContent = message;
-                // Show debug info if available
+                
+                // Show debug info if available and in development mode
                 const debugElement = document.getElementById('debugInfo');
-                if (debugInfo && typeof debugInfo === 'string') {
+                if (debugInfo && (window.location.hostname === 'localhost' || window.location.search.includes('debug=true'))) {
                     debugElement.textContent = debugInfo;
                     debugElement.style.display = 'block';
                 } else {
                     debugElement.style.display = 'none';
                 }
+                
                 if (this.countdownTimer) {
                     clearInterval(this.countdownTimer);
                     this.countdownTimer = null;
@@ -902,11 +974,12 @@
             setLoading(isLoading, message = '') {
                 const buttons = document.querySelectorAll('.btn');
                 const inputs = document.querySelectorAll('input');
+                
                 if (isLoading) {
                     buttons.forEach(btn => {
                         btn.disabled = true;
                         btn.classList.add('loading');
-                        if (message && btn.textContent.indexOf(message) === -1) {
+                        if (message && !btn.dataset.originalText) {
                             btn.dataset.originalText = btn.textContent;
                             btn.textContent = message;
                         }
@@ -926,11 +999,13 @@
             }
 
             formatDate(dateString) {
-                if (!dateString) return null;
+                if (!dateString) return 'Unknown';
                 try {
-                    return new Date(dateString).toLocaleDateString('en-US', {
+                    const date = new Date(dateString);
+                    return date.toLocaleDateString('en-US', {
                         year: 'numeric',
-                        month: 'short'
+                        month: 'short',
+                        day: 'numeric'
                     });
                 } catch {
                     return dateString;
@@ -940,8 +1015,10 @@
             copyCodeToClipboard(code) {
                 if (navigator.clipboard) {
                     navigator.clipboard.writeText(code).then(() => {
+                        console.log('📋 Code copied to clipboard:', code);
                         this.showCopyFeedback();
                     }).catch(() => {
+                        console.log('📋 Fallback copy method');
                         this.fallbackCopy(code);
                     });
                 } else {
@@ -952,25 +1029,34 @@
             fallbackCopy(code) {
                 const textArea = document.createElement('textarea');
                 textArea.value = code;
+                textArea.style.position = 'fixed';
+                textArea.style.opacity = '0';
+                textArea.style.top = '-1000px';
                 document.body.appendChild(textArea);
                 textArea.select();
                 try {
                     document.execCommand('copy');
+                    console.log('📋 Code copied via fallback method:', code);
                     this.showCopyFeedback();
                 } catch (err) {
-                    console.error('Copy failed:', err);
+                    console.error('📋 Copy failed:', err);
                 }
                 document.body.removeChild(textArea);
             }
 
             showCopyFeedback() {
                 const copyBtn = document.querySelector('.copy-btn');
+                if (!copyBtn) return;
+                
                 const originalText = copyBtn.textContent;
                 copyBtn.textContent = '✅';
                 copyBtn.style.background = 'var(--success-color)';
+                copyBtn.style.transform = 'scale(1.1)';
+                
                 setTimeout(() => {
                     copyBtn.textContent = originalText;
                     copyBtn.style.background = '';
+                    copyBtn.style.transform = '';
                 }, 2000);
             }
         }
@@ -984,49 +1070,37 @@
         }
 
         function resetVerification() {
-            document.querySelectorAll('.step-card').forEach(card => {
-                card.classList.add('hidden');
-                card.classList.remove('active');
-            });
+            console.log('🔄 Resetting verification');
+            verification.hideAllSteps();
             document.getElementById('step1').classList.remove('hidden');
             document.getElementById('step1').classList.add('active');
             document.getElementById('twitterUsername').value = '';
             document.getElementById('twitterUsername').focus();
             verification.currentStep = 1;
             verification.verificationData = null;
+            
             if (verification.countdownTimer) {
                 clearInterval(verification.countdownTimer);
                 verification.countdownTimer = null;
             }
         }
 
-        // Initialize verification flow
+        // Initialize verification system
         let verification;
         document.addEventListener('DOMContentLoaded', () => {
+            console.log('🚀 Initializing verification system...');
             verification = new EnhancedTwitterVerification();
             document.getElementById('twitterUsername').focus();
-            document.querySelectorAll('.step-card').forEach((card, index) => {
-                card.style.animationDelay = `${index * 0.1}s`;
-            });
-        });
-
-        document.addEventListener('visibilitychange', () => {
-            if (verification && verification.countdownTimer) {
-                if (document.hidden) {
-                    // Do nothing for security
-                } else {
-                    // Could add a "welcome back" message
-                }
+            
+            // Add debug parameter detection
+            const urlParams = new URLSearchParams(window.location.search);
+            if (urlParams.has('debug')) {
+                console.log('🐛 Debug mode enabled');
+                window.verification = verification; // Make available in console
             }
         });
 
-        window.addEventListener('beforeunload', (e) => {
-            if (verification && verification.currentStep > 1 && verification.currentStep < 3) {
-                e.preventDefault();
-                e.returnValue = 'Are you sure you want to leave? Your verification progress will be lost.';
-            }
-        });
-
+        // Handle keyboard shortcuts and navigation
         document.addEventListener('keydown', (e) => {
             if (e.key === 'Escape' && verification.currentStep !== 3) {
                 resetVerification();
@@ -1034,6 +1108,35 @@
             if ((e.ctrlKey || e.metaKey) && e.key === 'c' && verification.currentStep === 3) {
                 copyCode();
                 e.preventDefault();
+            }
+        });
+
+        // Handle page visibility for timer management
+        document.addEventListener('visibilitychange', () => {
+            if (verification && verification.countdownTimer) {
+                if (document.hidden) {
+                    console.log('📱 Page hidden - timer continues');
+                } else {
+                    console.log('📱 Page visible - timer active');
+                }
+            }
+        });
+
+        // Prevent accidental page refresh during verification
+        window.addEventListener('beforeunload', (e) => {
+            if (verification && verification.currentStep > 1 && verification.currentStep < 3) {
+                e.preventDefault();
+                e.returnValue = 'Are you sure you want to leave? Your verification progress will be lost.';
+            }
+        });
+
+        // Handle messages from Gaming Hub (if opened in popup)
+        window.addEventListener('message', (event) => {
+            console.log('📨 Message received:', event.data);
+            
+            if (event.data.type === 'CODE_USED') {
+                console.log('✅ Code successfully used in Gaming Hub');
+                // Could show a success message or close the popup
             }
         });
     </script>
