@@ -343,23 +343,33 @@
                 }
                 try {
                     this.setLoading(true, 'Checking Succinct Stats...');
-                    const response = await fetch(`${this.apiBaseUrl}/api/verify-twitter`, {
-                        method: 'POST',
+                    // Call Succinct Stats API directly
+                    const response = await fetch(`https://succinct-stats.vercel.app/api/user/${username}`, {
+                        method: 'GET',
                         headers: {
-                            'Content-Type': 'application/json',
-                        },
-                        body: JSON.stringify({
-                            twitterUsername: username
-                        })
+                            'Accept': 'application/json',
+                        }
                     });
-                    const result = await response.json();
-                    if (response.ok && result.found) {
+                    if (response.ok) {
+                        const userData = await response.json();
+                        // Transform the data to match your expected format
+                        const result = {
+                            found: true,
+                            stats: {
+                                twitterUsername: userData.twitterUsername || username,
+                                points: userData.points || userData.stars || 'N/A',
+                                rank: userData.rank || 'Unranked',
+                                joinDate: userData.joinDate || userData.createdAt
+                            }
+                        };
                         this.verificationData = result;
                         this.showStep2(result.stats);
+                    } else if (response.status === 404) {
+                        this.showError('Twitter account not found in Succinct Stats database. Please ensure you\'re part of the Succinct community.');
                     } else if (response.status === 429) {
                         this.showError('Too many verification attempts. Please wait before trying again.');
                     } else {
-                        this.showError(result.error || 'Twitter account not found in Succinct Stats database. Please ensure you\'re part of the Succinct community.');
+                        this.showError('Unable to verify your account. Please try again later.');
                     }
                 } catch (error) {
                     console.error('Verification error:', error);
@@ -401,27 +411,13 @@
             async generateVerificationCode() {
                 try {
                     this.setLoading(true, 'Generating code...');
-                    const response = await fetch(`${this.apiBaseUrl}/api/generate-verification-code`, {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                        },
-                        body: JSON.stringify({
-                            twitterUsername: this.verificationData.stats.twitterUsername,
-                            succinctData: this.verificationData.stats
-                        })
-                    });
-                    const result = await response.json();
-                    if (response.ok && result.success) {
-                        this.showStep3(result.code, result.expiresIn);
-                    } else if (response.status === 429) {
-                        this.showError('Too many code generation attempts. Please wait before requesting a new code.');
-                    } else {
-                        this.showError(result.error || 'Code generation failed. Please try again.');
-                    }
+                    // Generate code client-side (less secure but functional)
+                    const code = Math.floor(100000 + Math.random() * 900000).toString();
+                    const expiresInSeconds = 5 * 60; // 5 minutes
+                    this.showStep3(code, expiresInSeconds);
                 } catch (error) {
                     console.error('Code generation error:', error);
-                    this.showError('Network error. Please try again.');
+                    this.showError('Code generation failed. Please try again.');
                 } finally {
                     this.setLoading(false);
                 }
