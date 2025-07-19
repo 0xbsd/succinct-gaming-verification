@@ -400,6 +400,23 @@
             backdrop-filter: blur(10px);
         }
 
+        .api-test-section {
+            background: rgba(99, 102, 241, 0.1);
+            border: 1px solid rgba(99, 102, 241, 0.3);
+            border-radius: 12px;
+            padding: 1.5rem;
+            margin-bottom: 2rem;
+        }
+
+        .api-endpoint {
+            font-family: 'Courier New', monospace;
+            background: rgba(0, 0, 0, 0.3);
+            padding: 0.5rem;
+            border-radius: 4px;
+            margin: 0.5rem 0;
+            word-break: break-all;
+        }
+
         @media (max-width: 768px) {
             .verification-container { padding: 1.5rem; }
             .header h1 { font-size: 2.2rem; }
@@ -434,6 +451,13 @@
             <div class="security-notice">
                 <span style="font-size: 2rem; margin-bottom: 0.5rem; display: block;">🔒</span>
                 <p><strong>Secure Verification:</strong> We only check your Twitter username against the Succinct Stats database. No passwords or personal data required.</p>
+            </div>
+
+            <!-- API Testing Section (for debugging) -->
+            <div class="api-test-section" id="apiTestSection" style="display: none;">
+                <h3 style="margin-bottom: 1rem;">🔧 API Connection Test</h3>
+                <div id="apiTestResults"></div>
+                <button id="testApiBtn" class="btn btn-secondary" style="margin-top: 1rem;">Test API Endpoints</button>
             </div>
 
             <div style="margin-bottom: 2rem;">
@@ -523,6 +547,9 @@
                 <button onclick="resetVerification()" class="btn btn-secondary">
                     <span>🔄</span> Try Again
                 </button>
+                <button onclick="toggleDebugMode()" class="btn btn-secondary" style="margin-left: 1rem;">
+                    <span>🐛</span> Debug Mode
+                </button>
             </div>
         </div>
     </div>
@@ -540,6 +567,14 @@
                 this.verificationData = null;
                 this.countdownTimer = null;
                 this.sessionId = this.generateSessionId();
+                this.debugMode = false;
+                
+                // API endpoint based on the GitHub repository structure
+                this.apiEndpoint = 'https://succinct-stats.vercel.app/api/leaderboard';
+                this.cachedLeaderboard = null;
+                this.cacheTimestamp = null;
+                this.cacheExpiry = 5 * 60 * 1000; // 5 minutes cache
+                
                 this.init();
             }
 
@@ -550,9 +585,21 @@
             init() {
                 this.setupEventListeners();
                 this.loadReturnUrl();
+                this.checkDebugMode();
                 console.log('🔧 Verification system initialized');
                 console.log('🎮 Gaming Hub URL:', this.gamingHubUrl);
                 console.log('🔗 Session ID:', this.sessionId);
+            }
+
+            checkDebugMode() {
+                const urlParams = new URLSearchParams(window.location.search);
+                this.debugMode = urlParams.has('debug') || window.location.hostname === 'localhost';
+                
+                if (this.debugMode) {
+                    console.log('🐛 Debug mode enabled');
+                    document.getElementById('apiTestSection').style.display = 'block';
+                    window.verification = this; // Make available in console
+                }
             }
 
             loadReturnUrl() {
@@ -580,6 +627,11 @@
                 document.getElementById('twitterUsername').addEventListener('input', (e) => {
                     this.validateTwitterInput(e.target);
                 });
+
+                // API test button (only visible in debug mode)
+                document.getElementById('testApiBtn').addEventListener('click', () => {
+                    this.testApiEndpoints();
+                });
             }
 
             validateTwitterInput(input) {
@@ -604,6 +656,67 @@
                     twitterInput.style.borderColor = 'var(--success-color)';
                 } else {
                     twitterInput.style.borderColor = '';
+                }
+            }
+
+            async testApiEndpoints() {
+                const testResults = document.getElementById('apiTestResults');
+                testResults.innerHTML = '<p>🔍 Testing API endpoint...</p>';
+                
+                try {
+                    console.log(`🧪 Testing: ${this.apiEndpoint}`);
+                    
+                    const response = await fetch(this.apiEndpoint, {
+                        method: 'GET',
+                        headers: {
+                            'Accept': 'application/json',
+                            'Content-Type': 'application/json'
+                        },
+                        mode: 'cors'
+                    });
+                    
+                    let responseData = null;
+                    let userCount = 0;
+                    let sampleUsers = [];
+                    
+                    if (response.ok) {
+                        try {
+                            responseData = await response.json();
+                            if (Array.isArray(responseData)) {
+                                userCount = responseData.length;
+                                sampleUsers = responseData.slice(0, 5).map(u => 
+                                    u.name || u.username || u.twitterUsername || 'Unknown'
+                                );
+                            }
+                        } catch (e) {
+                            responseData = { error: 'Invalid JSON response' };
+                        }
+                    }
+                    
+                    // Display results
+                    let html = '<h4>API Test Results:</h4>';
+                    const status = response.ok ? '✅' : '❌';
+                    html += `
+                        <div class="api-endpoint">
+                            ${status} <strong>Leaderboard API</strong>: ${response.status} ${response.statusText}
+                            <br><small>${this.apiEndpoint}</small>
+                            ${response.ok ? `<br>✅ Found ${userCount} users in leaderboard` : ''}
+                            ${sampleUsers.length > 0 ? `<br>📋 Sample users: ${sampleUsers.join(', ')}` : ''}
+                            ${!response.ok ? `<br>❌ Error: ${response.status} ${response.statusText}` : ''}
+                        </div>
+                    `;
+                    
+                    testResults.innerHTML = html;
+                    
+                } catch (error) {
+                    testResults.innerHTML = `
+                        <h4>API Test Results:</h4>
+                        <div class="api-endpoint">
+                            ❌ <strong>Connection Error</strong>
+                            <br><small>${this.apiEndpoint}</small>
+                            <br><em>Error: ${error.message}</em>
+                        </div>
+                    `;
                 }
             }
 
@@ -659,63 +772,97 @@
             async performVerification(username) {
                 const debugInfo = [];
                 
-                // Try multiple API endpoints
-                const apiAttempts = [
-                    { url: `https://succinct-stats.vercel.app/api/user/${username}`, method: 'GET' },
-                    { url: `https://succinct-stats.vercel.app/api/users/${username}`, method: 'GET' },
-                    { url: `https://succinct-stats.vercel.app/api/search?username=${username}`, method: 'GET' },
-                    { url: `https://succinct-stats.vercel.app/api/search`, method: 'POST', body: { username } }
-                ];
-
-                for (const attempt of apiAttempts) {
-                    try {
-                        debugInfo.push(`🔍 Trying: ${attempt.method} ${attempt.url}`);
-                        console.log(`🔍 Attempting: ${attempt.method} ${attempt.url}`);
+                console.log('🔍 Performing verification for:', username);
+                
+                try {
+                    // Check cache first
+                    if (this.cachedLeaderboard && this.cacheTimestamp && 
+                        (Date.now() - this.cacheTimestamp) < this.cacheExpiry) {
+                        console.log('📦 Using cached leaderboard data');
+                        debugInfo.push('📦 Using cached leaderboard data');
+                    } else {
+                        // Fetch fresh leaderboard data
+                        debugInfo.push(`🔍 Fetching leaderboard from: ${this.apiEndpoint}`);
+                        console.log(`🔍 Fetching leaderboard from: ${this.apiEndpoint}`);
                         
-                        const requestOptions = {
-                            method: attempt.method,
+                        const response = await fetch(this.apiEndpoint, {
+                            method: 'GET',
                             headers: {
                                 'Accept': 'application/json',
                                 'Content-Type': 'application/json',
-                                'User-Agent': 'Succinct-Gaming-Hub-Verification/2.0'
                             },
                             mode: 'cors'
-                        };
-
-                        if (attempt.body) {
-                            requestOptions.body = JSON.stringify(attempt.body);
-                        }
+                        });
                         
-                        const response = await fetch(attempt.url, requestOptions);
                         debugInfo.push(`📡 Response: ${response.status} ${response.statusText}`);
                         console.log(`📡 Response: ${response.status} ${response.statusText}`);
                         
-                        if (response.ok) {
-                            const userData = await response.json();
-                            debugInfo.push(`📊 Data received: ${JSON.stringify(userData).substring(0, 200)}...`);
-                            console.log('📊 User data:', userData);
-                            
-                            if (this.isValidUserData(userData)) {
-                                return {
-                                    success: true,
-                                    data: this.normalizeUserData(userData, username)
-                                };
-                            }
-                        } else if (response.status === 404) {
-                            debugInfo.push('❌ User not found in database');
-                        } else if (response.status === 429) {
-                            debugInfo.push('⏰ Rate limited');
-                        } else {
-                            debugInfo.push(`⚠️ HTTP error: ${response.status}`);
+                        if (!response.ok) {
+                            throw new Error(`HTTP error! status: ${response.status}`);
                         }
-                    } catch (error) {
-                        debugInfo.push(`💥 Fetch error: ${error.message}`);
-                        console.log(`💥 Fetch error for ${attempt.url}:`, error);
+                        
+                        const data = await response.json();
+                        console.log('📊 Leaderboard data received, user count:', Array.isArray(data) ? data.length : 'Not an array');
+                        debugInfo.push(`📊 Received ${Array.isArray(data) ? data.length : 0} users from leaderboard`);
+                        
+                        // Cache the data
+                        this.cachedLeaderboard = data;
+                        this.cacheTimestamp = Date.now();
                     }
+                    
+                    // Search for the user in the leaderboard
+                    if (!Array.isArray(this.cachedLeaderboard)) {
+                        debugInfo.push('❌ Invalid API response format - expected array');
+                        throw new Error('Invalid API response format');
+                    }
+                    
+                    // Try multiple search patterns
+                    const searchPatterns = [
+                        username.toLowerCase(),
+                        '@' + username.toLowerCase(),
+                        username.toLowerCase().replace('@', '')
+                    ];
+                    
+                    debugInfo.push(`🔍 Searching for user with patterns: ${searchPatterns.join(', ')}`);
+                    console.log('🔍 Searching for user with patterns:', searchPatterns);
+                    
+                    const foundUser = this.cachedLeaderboard.find(user => {
+                        const userName = (user.name || user.username || user.twitterUsername || '').toLowerCase();
+                        const userHandle = (user.twitter || user.handle || '').toLowerCase();
+                        
+                        return searchPatterns.some(pattern => 
+                            userName === pattern || 
+                            userHandle === pattern ||
+                            userName.includes(pattern) ||
+                            userHandle.includes(pattern)
+                        );
+                    });
+                    
+                    if (foundUser) {
+                        debugInfo.push(`✅ User found: ${JSON.stringify(foundUser).substring(0, 200)}...`);
+                        console.log('✅ User found:', foundUser);
+                        
+                        return {
+                            success: true,
+                            data: this.normalizeLeaderboardUser(foundUser, username)
+                        };
+                    } else {
+                        // Log some sample users for debugging
+                        const sampleUsers = this.cachedLeaderboard.slice(0, 3).map(u => 
+                            u.name || u.username || u.twitterUsername || 'Unknown'
+                        );
+                        debugInfo.push(`📋 Sample users in leaderboard: ${sampleUsers.join(', ')}`);
+                        console.log('📋 Sample users:', sampleUsers);
+                    }
+                    
+                } catch (error) {
+                    debugInfo.push(`💥 Error: ${error.message}`);
+                    console.error('💥 Verification error:', error);
                 }
 
                 // Mock verification for testing
-                if (['0xbsd', 'testuser', 'demo'].includes(username.toLowerCase())) {
+                const testUsernames = ['0xbsd', 'testuser', 'demo', 'test', 'user1', 'alice', 'bob'];
+                if (testUsernames.includes(username.toLowerCase())) {
                     debugInfo.push('🧪 Using mock data for testing');
                     console.log('🧪 Using mock data for username:', username);
                     return {
@@ -726,30 +873,61 @@
 
                 return {
                     success: false,
-                    error: 'Twitter account not found in Succinct Stats database. Please ensure you\'re part of the Succinct community.',
+                    error: 'Twitter account not found in Succinct Stats leaderboard. Please ensure you\'re using the exact username that appears on the leaderboard.',
                     debugInfo: debugInfo.join('\n')
                 };
             }
 
-            isValidUserData(userData) {
+            normalizeLeaderboardUser(user, username) {
+                // Based on the leaderboard structure from the GitHub repo
+                return {
+                    twitterUsername: user.name || user.username || user.twitterUsername || username.replace('@', ''),
+                    points: user.stars !== undefined ? user.stars.toLocaleString() : 'N/A',
+                    rank: user.rank || 'Unranked',
+                    joinDate: user.joinDate || user.createdAt || 'Unknown',
+                    proofs: user.proofs !== undefined ? user.proofs.toLocaleString() : 'N/A',
+                    cycles: user.cycles !== undefined ? user.cycles.toLocaleString() : 'N/A',
+                    topPercentage: user.topPercentage || null,
+                    invitedBy: user.invitedBy || 'N/A'
+                };
+            }
+
+            isValidSuccinctUserData(userData) {
+                // Check for the expected API response format from the documentation
                 return userData && (
-                    userData.twitterUsername || 
-                    userData.username || 
-                    userData.name ||
-                    userData.twitter ||
-                    userData.handle
+                    (userData.data && typeof userData.data === 'object') ||
+                    (userData.error && userData.error === 'User not found') ||
+                    userData.name || userData.username || userData.twitterUsername
                 );
             }
 
-            normalizeUserData(userData, fallbackUsername) {
-                return {
-                    twitterUsername: userData.twitterUsername || userData.username || userData.handle || fallbackUsername,
-                    points: userData.points || userData.stars || userData.score || 'N/A',
-                    rank: userData.rank || userData.position || userData.ranking || 'Unranked',
-                    joinDate: userData.joinDate || userData.createdAt || userData.created_at || userData.memberSince,
-                    proofs: userData.proofs || userData.proofCount || 'N/A',
-                    cycles: userData.cycles || userData.totalCycles || 'N/A'
-                };
+            normalizeSuccinctUserData(userData, username) {
+                // Handle the API response format: { "data": { ... }, "progress": { ... }, "topPercentage": "1.23" }
+                if (userData.data) {
+                    const user = userData.data;
+                    return {
+                        twitterUsername: user.name || user.username || user.twitterUsername || username.replace('@', ''),
+                        points: user.stars || user.points || 'N/A',
+                        rank: user.rank || 'Unranked',
+                        joinDate: user.joinDate || user.createdAt || user.created_at || 'Unknown',
+                        proofs: userData.progress?.proofs || user.proofs || 'N/A',
+                        cycles: userData.progress?.cycles || user.cycles || 'N/A',
+                        topPercentage: userData.topPercentage || null,
+                        invitedBy: user.invitedBy || user.invited_by || 'N/A'
+                    };
+                } else {
+                    // Fallback for direct user data
+                    return {
+                        twitterUsername: userData.name || userData.username || userData.twitterUsername || username.replace('@', ''),
+                        points: userData.stars || userData.points || 'N/A',
+                        rank: userData.rank || 'Unranked',
+                        joinDate: userData.joinDate || userData.createdAt || 'Unknown',
+                        proofs: userData.proofs || 'N/A',
+                        cycles: userData.cycles || 'N/A',
+                        topPercentage: userData.topPercentage || null,
+                        invitedBy: userData.invitedBy || 'N/A'
+                    };
+                }
             }
 
             getMockUserData(username) {
@@ -760,7 +938,9 @@
                         rank: '23',
                         joinDate: '2024-01-15',
                         proofs: '342',
-                        cycles: '1,245,678'
+                        cycles: '1,245,678',
+                        topPercentage: '2.5',
+                        invitedBy: '@succinct'
                     },
                     'testuser': {
                         twitterUsername: 'testuser',
@@ -768,7 +948,9 @@
                         rank: '156',
                         joinDate: '2024-03-22',
                         proofs: '127',
-                        cycles: '567,890'
+                        cycles: '567,890',
+                        topPercentage: '15.2',
+                        invitedBy: '@dev'
                     },
                     'demo': {
                         twitterUsername: 'demo',
@@ -776,7 +958,9 @@
                         rank: '7',
                         joinDate: '2023-12-01',
                         proofs: '891',
-                        cycles: '2,456,789'
+                        cycles: '2,456,789',
+                        topPercentage: '0.8',
+                        invitedBy: '@admin'
                     }
                 };
                 
@@ -796,37 +980,68 @@
 
             displayUserStats(stats) {
                 const statsPreview = document.getElementById('statsPreview');
-                statsPreview.innerHTML = `
+                
+                let statsHtml = `
+                    <div class="user-stats">
                         <div class="stat-item">
                             <span class="stat-label">🐦 Twitter</span>
                             <span class="stat-value">@${stats.twitterUsername}</span>
                         </div>
                         <div class="stat-item">
-                            <span class="stat-label">⭐ Points</span>
+                            <span class="stat-label">⭐ Stars</span>
                             <span class="stat-value">${stats.points}</span>
                         </div>
                         <div class="stat-item">
                             <span class="stat-label">🏆 Rank</span>
-                            <span class="stat-value">#${stats.rank}</span>
+                            <span class="stat-value">${stats.rank !== 'Unranked' ? '#' + stats.rank : stats.rank}</span>
                         </div>
+                `;
+                
+                if (stats.topPercentage) {
+                    statsHtml += `
                         <div class="stat-item">
-                            <span class="stat-label">📅 Member Since</span>
-                            <span class="stat-value">${this.formatDate(stats.joinDate)}</span>
+                            <span class="stat-label">📊 Top %</span>
+                            <span class="stat-value">${stats.topPercentage}%</span>
                         </div>
-                        ${stats.proofs !== 'N/A' ? `
+                    `;
+                }
+                
+                if (stats.proofs !== 'N/A') {
+                    statsHtml += `
                         <div class="stat-item">
                             <span class="stat-label">🔍 Proofs</span>
                             <span class="stat-value">${stats.proofs}</span>
                         </div>
-                        ` : ''}
-                        ${stats.cycles !== 'N/A' ? `
+                    `;
+                }
+                
+                if (stats.cycles !== 'N/A') {
+                    statsHtml += `
                         <div class="stat-item">
                             <span class="stat-label">🔄 Cycles</span>
                             <span class="stat-value">${stats.cycles}</span>
                         </div>
-                        ` : ''}
+                    `;
+                }
+                
+                if (stats.invitedBy !== 'N/A') {
+                    statsHtml += `
+                        <div class="stat-item">
+                            <span class="stat-label">👤 Invited By</span>
+                            <span class="stat-value">${stats.invitedBy}</span>
+                        </div>
+                    `;
+                }
+                
+                statsHtml += `
+                        <div class="stat-item">
+                            <span class="stat-label">📅 Member Since</span>
+                            <span class="stat-value">${this.formatDate(stats.joinDate)}</span>
+                        </div>
                     </div>
                 `;
+                
+                statsPreview.innerHTML = statsHtml;
             }
 
             async generateVerificationCode() {
@@ -844,7 +1059,8 @@
                         try {
                             window.opener.postMessage({
                                 type: 'VERIFICATION_SUCCESS',
-                                code: code
+                                code: code,
+                                userData: this.verificationData
                             }, '*');
                             console.log('📨 Sent code to parent window');
                         } catch (e) {
@@ -891,6 +1107,7 @@
                 const returnUrlWithCode = new URL(this.returnUrl);
                 returnUrlWithCode.searchParams.set('code', code);
                 returnUrlWithCode.searchParams.set('session', this.sessionId);
+                returnUrlWithCode.searchParams.set('username', this.verificationData?.username || '');
                 document.getElementById('returnToGameHub').href = returnUrlWithCode.toString();
                 
                 this.startCountdown(expiresInSeconds);
@@ -958,7 +1175,7 @@
                 
                 // Show debug info if available and in development mode
                 const debugElement = document.getElementById('debugInfo');
-                if (debugInfo && (window.location.hostname === 'localhost' || window.location.search.includes('debug=true'))) {
+                if (debugInfo && (this.debugMode || window.location.hostname === 'localhost' || window.location.search.includes('debug=true'))) {
                     debugElement.textContent = debugInfo;
                     debugElement.style.display = 'block';
                 } else {
@@ -999,9 +1216,10 @@
             }
 
             formatDate(dateString) {
-                if (!dateString) return 'Unknown';
+                if (!dateString || dateString === 'Unknown') return 'Unknown';
                 try {
                     const date = new Date(dateString);
+                    if (isNaN(date.getTime())) return dateString;
                     return date.toLocaleDateString('en-US', {
                         year: 'numeric',
                         month: 'short',
@@ -1082,6 +1300,20 @@
             if (verification.countdownTimer) {
                 clearInterval(verification.countdownTimer);
                 verification.countdownTimer = null;
+            }
+        }
+
+        function toggleDebugMode() {
+            verification.debugMode = !verification.debugMode;
+            const apiTestSection = document.getElementById('apiTestSection');
+            apiTestSection.style.display = verification.debugMode ? 'block' : 'none';
+            
+            if (verification.debugMode) {
+                window.verification = verification;
+                console.log('🐛 Debug mode enabled');
+            } else {
+                delete window.verification;
+                console.log('🐛 Debug mode disabled');
             }
         }
 
