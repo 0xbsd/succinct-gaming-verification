@@ -324,11 +324,17 @@
 
                 // Real-time username validation
                 document.getElementById('twitterUsername').addEventListener('input', (e) => {
-                    const value = e.target.value.replace(/[^A-Za-z0-9_]/g, '');
-                    e.target.value = value;
-                    const verifyBtn = document.getElementById('verifyTwitterBtn');
-                    verifyBtn.disabled = value.length === 0;
-                });
+    let value = e.target.value;
+    // Allow '@' only as the first character, rest must be [A-Za-z0-9_]
+    if (value.startsWith('@')) {
+        value = '@' + value.slice(1).replace(/[^A-Za-z0-9_]/g, '');
+    } else {
+        value = value.replace(/[^A-Za-z0-9_]/g, '');
+    }
+    e.target.value = value;
+    const verifyBtn = document.getElementById('verifyTwitterBtn');
+    verifyBtn.disabled = value.length === 0;
+});
             }
 
             async verifyTwitterUsername() {
