@@ -1,16 +1,16 @@
 {
   "version": 2,
-  "name": "zk-gaming-verification",
+  "name": "succinct-gaming-verification",
   "builds": [
     {
       "src": "index.html",
       "use": "@vercel/static"
     }
   ],
-  "routes": [
+  "rewrites": [
     {
-      "src": "/(.*)",
-      "dest": "/index.html"
+      "source": "/(.*)",
+      "destination": "/index.html"
     }
   ],
   "headers": [
