@@ -289,7 +289,8 @@
     <script>
         class TwitterVerification {
             constructor() {
-                this.apiBaseUrl = 'https://api.succinct-gaming-hub.xyz'; // Your API URL
+                // ✅ UPDATED: Using your actual deployment URL
+                this.apiBaseUrl = 'https://succinct-gaming-hub.vercel.app';
                 this.currentStep = 1;
                 this.verificationData = null;
                 this.countdownTimer = null;
@@ -301,7 +302,8 @@
                 this.updateProgress();
                 // Get return URL from query params
                 const urlParams = new URLSearchParams(window.location.search);
-                this.returnUrl = urlParams.get('return_url') || 'https://succinct-gaming-hub.xyz';
+                // ✅ UPDATED: Using your actual deployment URL
+                this.returnUrl = urlParams.get('return_url') || 'https://succinct-gaming-hub.vercel.app';
             }
 
             setupEventListeners() {
