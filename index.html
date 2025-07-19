@@ -661,50 +661,144 @@
 
             async testApiEndpoints() {
                 const testResults = document.getElementById('apiTestResults');
-                testResults.innerHTML = '<p>🔍 Testing API endpoint...</p>';
+                testResults.innerHTML = '<p>🔍 Testing API endpoints...</p>';
                 
                 try {
-                    console.log(`🧪 Testing: ${this.apiEndpoint}`);
+                    const results = [];
                     
-                    const response = await fetch(this.apiEndpoint, {
-                        method: 'GET',
-                        headers: {
-                            'Accept': 'application/json',
-                            'Content-Type': 'application/json'
-                        },
-                        mode: 'cors'
-                    });
+                    // Test 1: Get specific user
+                    const testUsername = '@testuser';
+                    const userUrl = `${this.apiEndpoint}?action=getByUsername&username=${encodeURIComponent(testUsername)}`;
+                    console.log(`🧪 Testing user lookup: ${userUrl}`);
                     
-                    let responseData = null;
-                    let userCount = 0;
-                    let sampleUsers = [];
+                    try {
+                        const userResponse = await fetch(userUrl, {
+                            method: 'GET',
+                            headers: {
+                                'Accept': 'application/json',
+                                'Content-Type': 'application/json'
+                            },
+                            mode: 'cors'
+                        });
+                        
+                        let userData = null;
+                        if (userResponse.ok) {
+                            userData = await userResponse.json();
+                        }
+                        
+                        results.push({
+                            test: 'Get User by Username',
+                            url: userUrl,
+                            status: userResponse.status,
+                            ok: userResponse.ok,
+                            data: userData
+                        });
+                    } catch (error) {
+                        results.push({
+                            test: 'Get User by Username',
+                            url: userUrl,
+                            status: 'ERROR',
+                            ok: false,
+                            error: error.message
+                        });
+                    }
                     
-                    if (response.ok) {
-                        try {
-                            responseData = await response.json();
-                            if (Array.isArray(responseData)) {
-                                userCount = responseData.length;
-                                sampleUsers = responseData.slice(0, 5).map(u => 
-                                    u.name || u.username || u.twitterUsername || 'Unknown'
+                    // Test 2: Get full leaderboard
+                    console.log(`🧪 Testing full leaderboard: ${this.apiEndpoint}`);
+                    
+                    try {
+                        const leaderboardResponse = await fetch(this.apiEndpoint, {
+                            method: 'GET',
+                            headers: {
+                                'Accept': 'application/json',
+                                'Content-Type': 'application/json'
+                            },
+                            mode: 'cors'
+                        });
+                        
+                        let leaderboardData = null;
+                        let userCount = 0;
+                        let sampleUsers = [];
+                        
+                        if (leaderboardResponse.ok) {
+                            leaderboardData = await leaderboardResponse.json();
+                            if (leaderboardData.data && Array.isArray(leaderboardData.data)) {
+                                userCount = leaderboardData.data.length;
+                                sampleUsers = leaderboardData.data.slice(0, 5).map(u => 
+                                    u.name || u.username || 'Unknown'
                                 );
                             }
-                        } catch (e) {
-                            responseData = { error: 'Invalid JSON response' };
                         }
+                        
+                        results.push({
+                            test: 'Get Full Leaderboard',
+                            url: this.apiEndpoint,
+                            status: leaderboardResponse.status,
+                            ok: leaderboardResponse.ok,
+                            userCount: userCount,
+                            sampleUsers: sampleUsers
+                        });
+                    } catch (error) {
+                        results.push({
+                            test: 'Get Full Leaderboard',
+                            url: this.apiEndpoint,
+                            status: 'ERROR',
+                            ok: false,
+                            error: error.message
+                        });
+                    }
+                    
+                    // Test 3: Get network stats
+                    const statsUrl = `${this.apiEndpoint}?action=getNetworkStats`;
+                    console.log(`🧪 Testing network stats: ${statsUrl}`);
+                    
+                    try {
+                        const statsResponse = await fetch(statsUrl, {
+                            method: 'GET',
+                            headers: {
+                                'Accept': 'application/json',
+                                'Content-Type': 'application/json'
+                            },
+                            mode: 'cors'
+                        });
+                        
+                        let statsData = null;
+                        if (statsResponse.ok) {
+                            statsData = await statsResponse.json();
+                        }
+                        
+                        results.push({
+                            test: 'Get Network Stats',
+                            url: statsUrl,
+                            status: statsResponse.status,
+                            ok: statsResponse.ok,
+                            data: statsData
+                        });
+                    } catch (error) {
+                        results.push({
+                            test: 'Get Network Stats',
+                            url: statsUrl,
+                            status: 'ERROR',
+                            ok: false,
+                            error: error.message
+                        });
                     }
                     
                     // Display results
                     let html = '<h4>API Test Results:</h4>';
-                    const status = response.ok ? '✅' : '❌';
-                    html += `
-                        <div class="api-endpoint">
-                            ${status} <strong>Leaderboard API</strong>: ${response.status} ${response.statusText}
-                            <br><small>${this.apiEndpoint}</small>
-                            ${response.ok ? `<br>✅ Found ${userCount} users in leaderboard` : ''}
-                            ${sampleUsers.length > 0 ? `<br>📋 Sample users: ${sampleUsers.join(', ')}` : ''}
-                            ${!response.ok ? `<br>❌ Error: ${response.status} ${response.statusText}` : ''}
-                        </div>
-                    `;
+                    results.forEach(result => {
+                        const status = result.ok ? '✅' : '❌';
+                        html += `
+                            <div class="api-endpoint">
+                                ${status} <strong>${result.test}</strong>: ${result.status}
+                                <br><small>${result.url}</small>
+                                ${result.error ? `<br>❌ Error: ${result.error}` : ''}
+                                ${result.userCount ? `<br>✅ Found ${result.userCount} users` : ''}
+                                ${result.sampleUsers && result.sampleUsers.length > 0 ? `<br>📋 Sample users: ${result.sampleUsers.join(', ')}` : ''}
+                                ${result.data ? `<br>📊 Data: ${JSON.stringify(result.data).substring(0, 100)}...` : ''}
+                            </div>
+                        `;
+                    });
                     
                     testResults.innerHTML = html;
                     
@@ -712,8 +806,7 @@
                     testResults.innerHTML = `
                         <h4>API Test Results:</h4>
                         <div class="api-endpoint">
-                            ❌ <strong>Connection Error</strong>
-                            <br><small>${this.apiEndpoint}</small>
+                            ❌ <strong>Test Error</strong>
                             <br><em>Error: ${error.message}</em>
                         </div>
                     `;
@@ -775,89 +868,109 @@
                 console.log('🔍 Performing verification for:', username);
                 
                 try {
-                    // Check cache first
-                    if (this.cachedLeaderboard && this.cacheTimestamp && 
-                        (Date.now() - this.cacheTimestamp) < this.cacheExpiry) {
-                        console.log('📦 Using cached leaderboard data');
-                        debugInfo.push('📦 Using cached leaderboard data');
-                    } else {
-                        // Fetch fresh leaderboard data
-                        debugInfo.push(`🔍 Fetching leaderboard from: ${this.apiEndpoint}`);
-                        console.log(`🔍 Fetching leaderboard from: ${this.apiEndpoint}`);
-                        
-                        const response = await fetch(this.apiEndpoint, {
-                            method: 'GET',
-                            headers: {
-                                'Accept': 'application/json',
-                                'Content-Type': 'application/json',
-                            },
-                            mode: 'cors'
-                        });
-                        
-                        debugInfo.push(`📡 Response: ${response.status} ${response.statusText}`);
-                        console.log(`📡 Response: ${response.status} ${response.statusText}`);
-                        
-                        if (!response.ok) {
-                            throw new Error(`HTTP error! status: ${response.status}`);
-                        }
-                        
-                        const data = await response.json();
-                        console.log('📊 Leaderboard data received, user count:', Array.isArray(data) ? data.length : 'Not an array');
-                        debugInfo.push(`📊 Received ${Array.isArray(data) ? data.length : 0} users from leaderboard`);
-                        
-                        // Cache the data
-                        this.cachedLeaderboard = data;
-                        this.cacheTimestamp = Date.now();
-                    }
-                    
-                    // Search for the user in the leaderboard
-                    if (!Array.isArray(this.cachedLeaderboard)) {
-                        debugInfo.push('❌ Invalid API response format - expected array');
-                        throw new Error('Invalid API response format');
-                    }
-                    
-                    // Try multiple search patterns
-                    const searchPatterns = [
-                        username.toLowerCase(),
-                        '@' + username.toLowerCase(),
-                        username.toLowerCase().replace('@', '')
+                    // Try different username formats
+                    const usernamesToTry = [
+                        '@' + username,  // With @ prefix
+                        username,        // Without @ prefix
+                        '0x' + username  // In case it's a wallet address without 0x
                     ];
                     
-                    debugInfo.push(`🔍 Searching for user with patterns: ${searchPatterns.join(', ')}`);
-                    console.log('🔍 Searching for user with patterns:', searchPatterns);
-                    
-                    const foundUser = this.cachedLeaderboard.find(user => {
-                        const userName = (user.name || user.username || user.twitterUsername || '').toLowerCase();
-                        const userHandle = (user.twitter || user.handle || '').toLowerCase();
+                    for (const usernameFormat of usernamesToTry) {
+                        debugInfo.push(`🔍 Trying username format: ${usernameFormat}`);
+                        console.log(`🔍 Trying username format: ${usernameFormat}`);
                         
-                        return searchPatterns.some(pattern => 
-                            userName === pattern || 
-                            userHandle === pattern ||
-                            userName.includes(pattern) ||
-                            userHandle.includes(pattern)
-                        );
+                        const apiUrl = `${this.apiEndpoint}?action=getByUsername&username=${encodeURIComponent(usernameFormat)}`;
+                        debugInfo.push(`📡 API URL: ${apiUrl}`);
+                        console.log(`📡 Fetching from: ${apiUrl}`);
+                        
+                        try {
+                            const response = await fetch(apiUrl, {
+                                method: 'GET',
+                                headers: {
+                                    'Accept': 'application/json',
+                                    'Content-Type': 'application/json',
+                                },
+                                mode: 'cors'
+                            });
+                            
+                            debugInfo.push(`📡 Response: ${response.status} ${response.statusText}`);
+                            console.log(`📡 Response: ${response.status} ${response.statusText}`);
+                            
+                            if (response.ok) {
+                                const responseData = await response.json();
+                                console.log('📊 Response data:', responseData);
+                                debugInfo.push(`📊 Response data: ${JSON.stringify(responseData).substring(0, 200)}...`);
+                                
+                                // Check if we got a valid user response
+                                if (responseData.data && !responseData.error) {
+                                    console.log('✅ User found with format:', usernameFormat);
+                                    return {
+                                        success: true,
+                                        data: this.normalizeApiResponse(responseData, username)
+                                    };
+                                }
+                            } else if (response.status === 404) {
+                                debugInfo.push(`❌ User not found with format: ${usernameFormat}`);
+                            }
+                        } catch (error) {
+                            debugInfo.push(`💥 Error with format ${usernameFormat}: ${error.message}`);
+                            console.error(`💥 Error with format ${usernameFormat}:`, error);
+                        }
+                    }
+                    
+                    // If API calls fail, try fetching full leaderboard as fallback
+                    debugInfo.push('🔄 Trying fallback: fetching full leaderboard');
+                    console.log('🔄 Trying fallback: fetching full leaderboard');
+                    
+                    const fallbackUrl = this.apiEndpoint;
+                    const fallbackResponse = await fetch(fallbackUrl, {
+                        method: 'GET',
+                        headers: {
+                            'Accept': 'application/json',
+                            'Content-Type': 'application/json',
+                        },
+                        mode: 'cors'
                     });
                     
-                    if (foundUser) {
-                        debugInfo.push(`✅ User found: ${JSON.stringify(foundUser).substring(0, 200)}...`);
-                        console.log('✅ User found:', foundUser);
+                    if (fallbackResponse.ok) {
+                        const leaderboardData = await fallbackResponse.json();
                         
-                        return {
-                            success: true,
-                            data: this.normalizeLeaderboardUser(foundUser, username)
-                        };
-                    } else {
-                        // Log some sample users for debugging
-                        const sampleUsers = this.cachedLeaderboard.slice(0, 3).map(u => 
-                            u.name || u.username || u.twitterUsername || 'Unknown'
-                        );
-                        debugInfo.push(`📋 Sample users in leaderboard: ${sampleUsers.join(', ')}`);
-                        console.log('📋 Sample users:', sampleUsers);
+                        if (leaderboardData.data && Array.isArray(leaderboardData.data)) {
+                            debugInfo.push(`📊 Received ${leaderboardData.data.length} users from full leaderboard`);
+                            console.log(`📊 Searching through ${leaderboardData.data.length} users`);
+                            
+                            // Search for user in the full leaderboard
+                            const searchPatterns = [
+                                username.toLowerCase(),
+                                '@' + username.toLowerCase(),
+                                username.toLowerCase().replace('@', '')
+                            ];
+                            
+                            const foundUser = leaderboardData.data.find(user => {
+                                const userName = (user.name || user.username || user.twitterUsername || '').toLowerCase();
+                                const userHandle = (user.twitter || user.handle || '').toLowerCase();
+                                
+                                return searchPatterns.some(pattern => 
+                                    userName === pattern || 
+                                    userHandle === pattern ||
+                                    userName.includes(pattern) ||
+                                    userHandle.includes(pattern)
+                                );
+                            });
+                            
+                            if (foundUser) {
+                                debugInfo.push(`✅ User found in leaderboard: ${foundUser.name || foundUser.username}`);
+                                return {
+                                    success: true,
+                                    data: this.normalizeLeaderboardUser(foundUser, username)
+                                };
+                            }
+                        }
                     }
                     
                 } catch (error) {
-                    debugInfo.push(`💥 Error: ${error.message}`);
-                    console.error('💥 Verification error:', error);
+                    debugInfo.push(`💥 General error: ${error.message}`);
+                    console.error('💥 General verification error:', error);
                 }
 
                 // Mock verification for testing
@@ -873,8 +986,25 @@
 
                 return {
                     success: false,
-                    error: 'Twitter account not found in Succinct Stats leaderboard. Please ensure you\'re using the exact username that appears on the leaderboard.',
+                    error: 'Twitter account not found in Succinct Stats database. Please ensure you\'re using the exact username (with or without @) that appears on the leaderboard.',
                     debugInfo: debugInfo.join('\n')
+                };
+            }
+
+            normalizeApiResponse(responseData, username) {
+                // Handle the API response format from getByUsername endpoint
+                const user = responseData.data || {};
+                const progress = responseData.progress || {};
+                
+                return {
+                    twitterUsername: user.name || user.username || user.twitterUsername || username.replace('@', ''),
+                    points: user.stars !== undefined ? user.stars.toLocaleString() : 'N/A',
+                    rank: user.rank || 'Unranked',
+                    joinDate: user.joinDate || user.createdAt || 'Unknown',
+                    proofs: progress.proofs !== undefined ? progress.proofs.toLocaleString() : 'N/A',
+                    cycles: progress.cycles !== undefined ? progress.cycles.toLocaleString() : 'N/A',
+                    topPercentage: responseData.topPercentage || null,
+                    invitedBy: user.invitedBy || user.invited_by || 'N/A'
                 };
             }
 
